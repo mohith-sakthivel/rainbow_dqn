@@ -1,0 +1,6 @@
+.vscode/*
+rainbow/__pycache__/*
+__pycache__/*
+docs/*
+runs/*
+rainbow/image_learn/*
