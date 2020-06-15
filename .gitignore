@@ -4,3 +4,5 @@ __pycache__/*
 docs/*
 runs/*
 rainbow/image_learn/*
+rainbow/test.py
+rainbow/test.ipynb

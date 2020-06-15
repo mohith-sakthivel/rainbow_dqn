@@ -1,10 +1,16 @@
 import gym
 import time
+import numpy as np
+
+import tqdm.autonotebook as auto
 
 from rainbow import Rainbow
+from models import NoisyDuelNet
 
 from torch.utils.tensorboard import SummaryWriter
 from utils import plot_var_history
+
+import matplotlib.pyplot as plt
 
 
 def run_experient(env, num_runs, num_episodes, agent_args,
@@ -29,7 +35,9 @@ def run_experient(env, num_runs, num_episodes, agent_args,
                 writer = SummaryWriter(tb_path + '/' + agent.__str__() +
                                        '/' + model_name)
             # Start the episodes
-            for episode in range(1, num_episodes+1):
+            for episode in auto.tqdm(range(1, num_episodes+1),
+                                     desc='Config %d | Run %d' % (i+1, run),
+                                     leave=False):
                 observation = env.reset()
                 done = False
                 time_step = 0
@@ -67,25 +75,40 @@ def run_experient(env, num_runs, num_episodes, agent_args,
 Environment = 'CartPole-v1'
 cart_pole_env = gym.make(Environment)
 
-agent_args = [{'hid_lyrs': [64, 64], 'target_update_freq': 150,
-               'mini_batch': 128, 'discount': 0.999, 'replay_mem': 10000,
-               'max_lr': None, 'lr': 0.001, 'anneal_period': 500,
-               'eps_ini': 0.9, 'eps_fin': 0.05, 'explo_period': 1000},
-              {'hid_lyrs': [64, 64], 'target_update_freq': 150,
-               'mini_batch': 128, 'discount': 0.999, 'replay_mem': 10000,
-               'max_lr': None, 'lr': 0.001, 'anneal_period': 500,
-               'eps_ini': 0.9, 'eps_fin': 0.05, 'explo_period': 1000}]
+agent_args = [
+              {'network': lambda obs, act: NoisyDuelNet(obs, [64, 64, 64], act),
+               'n_step': 3,
+               'target_update_freq': 150, 'policy_update_freq': 2,
+               'mini_batch': 32, 'discount': 0.999, 'replay_mem': 10000,
+               'lr': {'start': 0.0005, 'end': 1e-4, 'period': 5000},
+               'eps': 0,
+               'pri_buf_args': {'alpha': 0.7, 'beta': (0.5, 1), 'period': 1e6},
+               'clip_grads': 20,
+               'no_duel': False, 'no_double': False, 'no_priority_buf': False},
+              ]
 
-reward_hist, agent_hist = run_experient(cart_pole_env, 1, 500, agent_args,
-                                        tb_path='runs', render_env=False)
-
+reward_hist, agent_hist = run_experient(env=cart_pole_env,
+                                        num_runs=1, num_episodes=1000,
+                                        agent_args=agent_args,
+                                        tb_path='runs/', render_env=False)
 
 # Plot Results
 plot_args = {'x_label': 'Episode',
-             'y_label': 'Reward per Episode\n(Averaged over 25 runs)',
+             'y_label': 'Reward per Episode\n(Averaged over 5 runs)',
              'log_scale': False,
              'y_ticks': [25, 50, 100, 200, 300, 400, 500]}
 
-labels = ["Setting 1", "Setting 2", "Setting 3"]
+labels = ["Setting 1", "Setting 2", "Setting 3",
+          "Setting 4", "Setting 5", "Setting 6"]
 
 plot_var_history(reward_hist, labels, **plot_args)
+
+
+noise_labels = ["w1 sigma", "w2 sigma", "w3 sigma", "w4 sigma"]
+noise_plot_args = {'x_label': 'Episode',
+                   'y_label': 'W sigma values', 'log_scale': False}
+
+noise_data = np.array([*zip(*agent_hist[0].noise_hist)])
+noise_data = np.expand_dims(noise_data, -2)
+plot_var_history(noise_data, noise_labels, **noise_plot_args)
+plt.show()
