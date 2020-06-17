@@ -4,7 +4,7 @@ This repository contains an implementation of the rainbow DQN algorithm put forw
 
 ## Description
 
-Deep Q-Learning Network (DQN)[2] is one of the most popular deep reinforcement learning algorithms. It is an off-policy learning algorithm that is highly sample efficient. Over the years, many improvements were proposed to improve the performance of DQN. Of the many extensions available for the DQN algorithm, some popular enhancements were combined by the DeepMind team and presented as the Rainbow DQN algorithm. These imporvements were found to be mostly orthogonal, with each component contributing to various degrees.
+Deep Q-Learning Network (DQN) [2] is one of the most popular deep reinforcement learning algorithms. It is an off-policy learning algorithm that is highly sample efficient. Over the years, many improvements were proposed to improve the performance of DQN. Of the many extensions available for the DQN algorithm, some popular enhancements were combined by the DeepMind team and presented as the Rainbow DQN algorithm. These imporvements were found to be mostly orthogonal, with each component contributing to various degrees.
 
 The six add-ons to the base DQN algorithm in the Rainbow version are
 
@@ -28,7 +28,7 @@ Van Hassalt et. al [3] introduced a method to alleviate this effect by decouplin
 ### 2. Prioritized Experience Replay
 Prioritized experience replay is a crucial part of DQN. It provides stability by breaking correlations in the agent's experience. The transitions expereienced by the agent is stored in a buffer. A mini-batch is sampled from this buffer uniformly and is used at each learning step. Thus older experience, which is likely to be different from the observations encountered during current policy, is also available for learning. This breaks the correlations and provides a rich and diverse experience to learn from.
 
-A suggested by Silver et al. in [1] some experiences have more prospect for potential learning. Better performance can be obtained by prioritizing transitions with greater learning potential. The td-error of the transition is a readily available proxy for the learning potential metric. Schaul et al. [4] proposed a proportial method and a rank based method to achieve this prioritizing. Though the rainbow paper uses the proportional variant, this implementation uses the rank based variant as it is less sensitive to outliers. An effective implementation of the prioritized queue is necessary to avoid excessive computational overhead. The priority queue is implemented here using a Binary Search Tree (BST) as suggested in [4].
+A suggested by Silver et al. in [1] some experiences have more prospect for potential learning. Better performance can be obtained by prioritizing transitions with greater learning potential. The td-error of the transition is a readily available proxy for the learning potential metric. Schaul et al. [4] proposed a proportial method and a rank based method to achieve this prioritizing. Though the rainbow paper uses the proportional variant, this implementation uses the rank based variant as it is less sensitive to outliers. An effective implementation of the prioritized queue is necessary to avoid excessive computational overhead. The priority queue is implemented here using a Binary Search Tree (BST).
 
 ### 3. Dueling Networks
 Wang et al. [5] showed that that the performance of DQN can be improved by decoupling the value estimation and advantage estimation. This dueling architecture has a shared layer of networks followed by two separate streams - one for estimating state value and another for the action advantag. These two streams are again combined to compute the state-action values. This allows for better generalization across actions
@@ -49,7 +49,7 @@ Achieving a directed exploration strategy is not very straightforward with Neura
     - openai gym
     - tqdm (optional)
 
-## Citations
+## Citation
 1. Matteo Hessel, Joseph Modayil, Hado van Hasselt, Tom Schaul, Georg Ostrovski, Will Dabney, Dan Horgan, Bilal Piot, Mohammad Azar, David Silver. Rainbow: Combining Improvements in Deep Reinforcement Learning. arXiv preprint arXiv:1710.02298, 2017.
 
 2. Volodymyr Mnih, Koray Kavukcuoglu, David Silver, Andrei A Rusu, Joel Veness, Marc G Bellemare,Alex Graves, Martin Riedmiller, Andreas K Fidjeland, Georg Ostrovski, et al. Human-level control through deep reinforcement learning. Nature, 518(7540):529–533, 2015.
