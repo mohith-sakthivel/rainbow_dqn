@@ -103,6 +103,49 @@ class NoisyLinear(nn.Module):
         )
 
 
+class NoisyDistNet(nn.Module):
+    def __init__(self, obs_dim, hid_lyrs, actions, atoms, activation=nn.ReLU):
+        super().__init__()
+        assert len(hid_lyrs) >= 2, 'Aleast 2 hidden layers are required'
+        self.actions = actions
+        self.atoms = atoms
+        # create network shared by both value and adavantage layers
+        layers = [obs_dim] + hid_lyrs
+        nn_layers = []
+        for index in range(len(layers)-2):
+            nn_layers.append(nn.Linear(layers[index], layers[index+1]))
+            nn_layers.append(activation())
+        self.shared_net = nn.Sequential(*nn_layers)
+        # neural network layers to calculate state values
+        self.value = nn.Sequential(NoisyLinear(hid_lyrs[-2], hid_lyrs[-1]),
+                                   activation(),
+                                   NoisyLinear(hid_lyrs[-1], self.atoms))
+        # neural network layers to calculate action advantages
+        self.advantage = nn.Sequential(NoisyLinear(hid_lyrs[-2], hid_lyrs[-1]),
+                                       activation(),
+                                       NoisyLinear(hid_lyrs[-1], self.actions*self.atoms))
+        self.noisy_layers = []
+        for layer in chain(self.shared_net, self.value, self.advantage):
+            if isinstance(layer, NoisyLinear):
+                self.noisy_layers.append(layer)
+
+    def forward(self, x):
+        shared_net = self.shared_net(x)
+        if shared_net.ndim == 1:
+            value = self.value(shared_net)
+            adv = self.advantage(shared_net).view(self.actions, self.atoms)
+        else:
+            value = self.value(shared_net).view(-1, 1, self.atoms)
+            adv = self.advantage(shared_net).view(-1, self.actions, self.atoms)
+        action_val = value + (adv - adv.mean(-2, keepdim=True))
+        return F.softmax(action_val, dim=-1)
+
+    def feed_noise(self):
+        """ Feed new noise values into the noisy layers of the network """
+        for layer in self.noisy_layers:
+            layer.generate_noise()
+
+
 class DuelNet(nn.Module):
     def __init__(self, obs_dim, hid_lyrs, num_actions, activation=nn.ReLU):
         super().__init__()
@@ -117,7 +160,7 @@ class DuelNet(nn.Module):
         # neural network layers to calculate state values
         self.value = nn.Sequential(nn.Linear(hid_lyrs[-2], hid_lyrs[-1]),
                                    activation(),
-                                   nn.Linear(hid_lyrs[-1], num_actions))
+                                   nn.Linear(hid_lyrs[-1], 1))
         # neural network layers to calculate action advantages
         self.advantage = nn.Sequential(nn.Linear(hid_lyrs[-2], hid_lyrs[-1]),
                                        activation(),
@@ -142,10 +185,10 @@ class NoisyDuelNet(nn.Module):
             nn_layers.append(nn.Linear(layers[index], layers[index+1]))
             nn_layers.append(activation())
         self.shared_net = nn.Sequential(*nn_layers)
-        # neural network layers to calculate state values
+        # neural network layers to calculate state value
         self.value = nn.Sequential(NoisyLinear(hid_lyrs[-2], hid_lyrs[-1]),
                                    activation(),
-                                   NoisyLinear(hid_lyrs[-1], num_actions))
+                                   NoisyLinear(hid_lyrs[-1], 1))
         # neural network layers to calculate action advantages
         self.advantage = nn.Sequential(NoisyLinear(hid_lyrs[-2], hid_lyrs[-1]),
                                        activation(),
