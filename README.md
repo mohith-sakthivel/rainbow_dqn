@@ -43,6 +43,30 @@ Reinforcement learning literature has predominantly focussed on learning an esti
 ### 6. Noisy Networks
 Achieving a directed exploration strategy is not very straightforward with Neural Networks. The most common exploration policy - epsilon greedy, is quite inefficient as the exploration is random. Fortunato et al. [9] introduced NosiyNets which have a parameteric noise variable embedded into their layers. This induced stochasticity proves to be an effective exploration strategy over the traditional methods. This implementation uses Noisy Linear layers with factorized gaussion noise.
 
+## Usage
+
+The rainbow algorithm has methods only to facilitate training. Users have to write their own function for evaluation.
+
+For those interested in studying the contributions of various rainbow components, the algorithm supports functionlity to perform ablation studies.
+
+Modify the arguments passed to the rainbow class as necessary and pass the flags to disable the corresponding components. Some combinations might not have the helper functions pre-defined.
+
+To test the rainbow algorithm on your machine, use
+
+### Linux
+
+```
+python rainbow/example.py --env=envname --runs=num_runs --episodes=num_episodes
+```
+#### Arguments:
+    env      - available environments are 'CartPole-v1' and 'Pong-v0'
+
+    runs     - number of runs to perform the training (default 3) 
+
+    episodes - number of episodes to run durin each trial run (default 250)
+
+**Note:** The 'Pong-v0' environment requires significant memory to store the replay buffer.
+
 ## Requirements
     - python 3.5 or greater
     - pytorch
