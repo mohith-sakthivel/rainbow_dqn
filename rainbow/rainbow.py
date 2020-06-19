@@ -5,9 +5,11 @@ import torch
 import torch.optim as optim
 import torch.optim.lr_scheduler as Scheduler
 
-from models import NoisyDistNet
 from replay_buffer import ReplayBuffer, PrioritizedReplayBuffer, Transition
 from schedules import ExponentialScheduler
+
+from datetime import datetime
+import os
 
 
 class ValueVar():
@@ -44,21 +46,51 @@ class Rainbow():
 
     Arguments:
 
+    num_actions        - number of actions available for the agent to take
+    n_net              - a function that takes in num_actions (and num_atoms
+                         for ditributional networks) as argument to
+                         instantiate a pytorch module
+    seed               - seed for the agent
+    policy_update_freq - number of time steps between each policy
+                         network update
+    target_update_freq - number of policy network update steps between each
+                         target network update
+    mini_batch         - size of the minibatch
+    discount           - discount to be used for the problem
+    replay_mem         - size of the replay buffer
+    lr                 - learning rate or dict containing LR scheduler
+                         arguments
+    eps                - eps value or dict containing 'start', 'end'
+                         and 'period' keys for scheduling
+    pri_buf_args       - dict containing 'alpha', 'beta' and 'period'
+                         (beta annealing) keys for prioritized replay buffer
+    distrib_args       - dict containg 'atoms', 'min_val' (minimum value) and
+                         'max_val' (maximum value) keys for the distributional
+                         value network
+    clip_grad          - value for clipping gradient norms
+    learn_start        - time step after which to start learning
+    check_point        - episodes at which the active policy network model
+                         should be saved
+    save_path          - path to save the neural network parameters
+    no_duel            - flag to turn of duelling networks
+    no_double          - flag to turn off double Q-networks
+    no_priority        - flag to turn off prioritized buffers
+    no_noise           - flag to turn off noisy layers
+    no_distrib         - flag to turn off distributional value learning
+
     """
 
-    def __init__(self, obs_dim, num_actions, seed=None, n_step=1,
-                 n_net=lambda obs, act, atoms: NoisyDistNet(obs, [64, 64, 64], act, atoms),
+    def __init__(self, num_actions, n_net, seed=None, n_step=1,
                  policy_update_freq=2, target_update_freq=75,
                  mini_batch=32, discount=0.999, replay_mem=10000,
                  lr={'start': 0.0005, 'end': 0.0001, 'period': 500},
                  eps={'start': 0.9, 'end': 0.05, 'period': 2500},
                  pri_buf_args={'alpha': 0.7, 'beta': (0.5, 1), 'period': 1e6},
                  distrib_args={'atoms': 21},
-                 clip_grads=10, check_pts=[], save_path=None,
+                 clip_grads=10, learn_start=1e5, check_pts=[], save_path=None,
                  no_duel=False, no_double=False, no_priority_buf=False,
                  no_noise=False, no_distrib=False):
         self.num_actions = num_actions
-        self.obs_dim = obs_dim
         self.n_step = n_step
         self.policy_update_freq = policy_update_freq
         self.target_update_freq = target_update_freq * policy_update_freq
@@ -66,6 +98,7 @@ class Rainbow():
         self.discount = discount
         self.replay_mem = replay_mem
         self.clip_grads = clip_grads
+        self.learn_start = learn_start
         # set epsilon
         if isinstance(eps, dict):
             self.eps = ExpScheduleAutoStep(**eps)
@@ -98,7 +131,7 @@ class Rainbow():
             self.min_val = distrib_args['min_val']
             self.max_val = distrib_args['max_val']
             self.num_atoms = distrib_args.get('atoms')
-            def network(obs, act): return n_net(obs, act, self.num_atoms)
+            def network(act): return n_net(act, self.num_atoms)
             self.delta_z =\
                 (self.max_val - self.min_val)/(self.num_atoms - 1)
             self.z_atoms = [self.min_val]
@@ -109,8 +142,8 @@ class Rainbow():
         else:
             network = n_net
         # setup the neural network
-        self.policy_net = network(obs_dim, self.num_actions)
-        self.target_net = network(obs_dim, self.num_actions)
+        self.policy_net = network(self.num_actions)
+        self.target_net = network(self.num_actions)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
         self.policy_net.to(self.device)
@@ -158,6 +191,16 @@ class Rainbow():
         # training history
         self.episode_rewards_hist = []
         self.loss_hist = []
+        # set up save points
+        if save_path is not None and len(check_pts) >= 0:
+
+            self.save_path = save_path + '/' + \
+                             datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
+            os.makedirs(self.save_path)
+            self.check_pts = check_pts
+            self.save_model = True
+        else:
+            self.save_model = False
 
     def _action_selection_wrappper(self):
         """
@@ -187,6 +230,7 @@ class Rainbow():
             return noisy_wrapper
 
     def _choose_max(self, values):
+        values = values.squeeze()
         max_val = values[0]
         max_idxes = [0]
         for i in range(1, values.size):
@@ -268,7 +312,7 @@ class Rainbow():
         self.action_buffer.append(action)
         # update policy network
         if (self.steps % self.policy_update_freq == 0 and
-                len(self.replay) >= self.mini_batch):
+                len(self.replay) >= self.learn_start):
             self._compute_loss()
             self._optimize()
             # update target network
@@ -294,7 +338,7 @@ class Rainbow():
                 n_reward += rew*disc
             self.replay.add(Transition(self.obs_buffer[-i],
                                        self.action_buffer[-i],
-                                       np.zeros(self.obs_dim, dtype='float32'),
+                                       np.zeros_like(self.obs_buffer[-i], dtype='float32'),
                                        n_reward, False, np.inf))
         # clear stored memory
         self.reward_buffer.clear()
@@ -302,12 +346,16 @@ class Rainbow():
         self.action_buffer.clear()
         # update policy network
         if (self.steps % self.policy_update_freq == 0 and
-                len(self.replay) >= self.mini_batch):
+                len(self.replay) >= self.learn_start):
             self._compute_loss()
             self._optimize()
             # update target network
             if self.steps % self.target_update_freq == 0:
                 self.target_net.load_state_dict(self.policy_net.state_dict())
+        # save model
+        if self.save_model and self.episodes in self.check_pts:
+            torch.save(self.policy_net.state_dict(),
+                       self.save_path + '/' + str(self.episodes))
         return self.episode_reward
 
     def _optimize(self):
@@ -339,7 +387,7 @@ class Rainbow():
         obs = torch.tensor(obs, device=self.device,
                            dtype=torch.float32)
         rewards = torch.tensor(rewards, device=self.device,
-                               dtype=torch.float32).unsqueeze(-1)
+                               dtype=torch.float32)
         next_obs = torch.tensor(next_obs, device=self.device,
                                 dtype=torch.float32)[t_masks]
         t_masks_rev = [not val for val in t_masks]
@@ -361,14 +409,14 @@ class Rainbow():
             max_actions = \
                 (next_obs_probs * self.z_atoms).sum(dim=-1).max(dim=-1)[1]
             # calculate target value atoms
-            target = rewards[t_masks] + self.n_disc * self.z_atoms
+            target = rewards.unsqueeze(-1)[t_masks] + self.n_disc*self.z_atoms
             target.clamp_(self.min_val, self.max_val)
             # project non-terminal state targets on to the support vectors
             b = (target - self.min_val)/self.delta_z
             low = torch.floor(b).type(torch.int64)
             up = torch.ceil(b).type(torch.int64)
             # project terminal state targets on to the support vectors
-            b_term = (rewards[t_masks_rev].squeeze(-1) - self.min_val)/self.delta_z
+            b_term = (rewards[t_masks_rev] - self.min_val)/self.delta_z
             low_term = torch.floor(b_term).type(torch.int64)
             up_term = torch.ceil(b_term).type(torch.int64)
             # calulate next state-action value probability

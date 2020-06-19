@@ -103,6 +103,50 @@ class NoisyLinear(nn.Module):
         )
 
 
+class ConvDQN(nn.Module):
+    def __init__(self, channels, actions, atoms, activation=nn.ReLU):
+        super().__init__()
+        self.actions = actions
+        self.atoms = atoms
+        # create network shared by both value and adavantage layers
+        self.shared_net = nn.Sequential(nn.Conv2d(channels, 32, 8, stride=4),
+                                        nn.ReLU(),
+                                        nn.Conv2d(32, 64, 4, stride=2),
+                                        nn.ReLU(),
+                                        nn.Conv2d(64, 64, 3, stride=1),
+                                        nn.ReLU())
+        # neural network layers to calculate state values
+        self.value = nn.Sequential(NoisyLinear(2304, 512),
+                                   activation(),
+                                   NoisyLinear(512, self.atoms))
+        # neural network layers to calculate action advantages
+        self.advantage = nn.Sequential(NoisyLinear(2304, 512),
+                                       activation(),
+                                       NoisyLinear(512, self.actions*self.atoms))
+        self.noisy_layers = []
+        for layer in chain(self.value, self.advantage):
+            if isinstance(layer, NoisyLinear):
+                self.noisy_layers.append(layer)
+
+    def forward(self, x):
+        squeezed = False
+        if x.ndim == 3:
+            x.unsqueeze_(0)
+            squeezed = True
+        shared_net = self.shared_net(x).view(-1, 2304)
+        value = self.value(shared_net).view(-1, 1, self.atoms)
+        adv = self.advantage(shared_net).view(-1, self.actions, self.atoms)
+        action_val = value + (adv - adv.mean(-2, keepdim=True))
+        if squeezed:
+            return F.softmax(action_val, dim=-1).squeeze(0)
+        return F.softmax(action_val, dim=-1)
+
+    def feed_noise(self):
+        """ Feed new noise values into the noisy layers of the network """
+        for layer in self.noisy_layers:
+            layer.generate_noise()
+
+
 class NoisyDistNet(nn.Module):
     def __init__(self, obs_dim, hid_lyrs, actions, atoms, activation=nn.ReLU):
         super().__init__()

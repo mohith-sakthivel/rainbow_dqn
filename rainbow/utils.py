@@ -1,10 +1,28 @@
 import numpy as np
+import datetime
+import os
 # import plot tools
 import matplotlib
 import matplotlib.pyplot as plt
 
 
 color_list = ['b', 'g', 'r', 'y', 'k', 'm']
+
+
+def preprocess(atari_screen, frames):
+    """
+    Process an 210x160 RGB image into an 80x80 GreyScale Image
+    """
+    if len(atari_screen) < 4:
+        while len(atari_screen) < 4:
+            atari_screen.append(atari_screen[-1])
+    atari_screen = np.array(atari_screen)
+    out = atari_screen[:, 35:195, :]      # crop into square
+    out = out[:, ::2, ::2, 0]   # downsample by factor of 2 with one channel
+    out[out == 144] = 0     # erase background 1
+    out[out == 109] = 0     # erase background 2
+    out[out != 0] = 1       # everything else (paddles, ball) just set to 1
+    return out.reshape(1, 4, 80, 80).astype(np.bool)
 
 
 def plot_var_history(var_history, labels, show_confidence=False,
@@ -55,12 +73,12 @@ def plot_var_history(var_history, labels, show_confidence=False,
     ax.legend()
 
 
-def get_model_name(param_dict):
-    hid_lyrs = ''.join(str(param_dict.get("hid_lyrs")).split(','))
-    lr = param_dict.get('lr', 'x')
-    target_freq = param_dict.get('target_update_freq', 'x')
-    mini_batch = param_dict.get('mini_batch', 'x')
-
-    name = 'hid_{0}_lr_{1}_target_freq_{2}_mini_batch_{3:.0e}'.\
-        format(hid_lyrs, lr, target_freq, mini_batch)
-    return name
+def get_model_name(param_dict, path):
+    time_stamp = datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
+    write_path = path + '/' + time_stamp
+    os.makedirs(write_path)
+    with open(path + '/model_details.txt', 'w+') as info:
+        info.write('Model Details:\n')
+        for keys, value in param_dict.items():
+            info.write(str(keys) + ': ' + str(value) + '\n')
+    return write_path

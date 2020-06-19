@@ -3,7 +3,10 @@ rainbow/__pycache__/*
 __pycache__/*
 docs/*
 runs/*
+data/*
 rainbow/image_learn/*
 rainbow/test.py
 rainbow/test.ipynb
 rainbow/rainbow.ipynb
+rainbow/data
+rainbow/profiling_data
