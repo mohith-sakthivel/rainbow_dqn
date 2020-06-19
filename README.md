@@ -56,14 +56,14 @@ To test the rainbow algorithm on your machine, use
 ### Linux
 
 ```
-python rainbow/example.py --env=envname --runs=num_runs --episodes=num_episodes
+python rainbow/example.py --env='CartPole-v1 --runs=3 --episodes=250
 ```
 #### Arguments:
     env      - available environments are 'CartPole-v1' and 'Pong-v0'
 
-    runs     - number of runs to perform the training (default 3) 
+    runs     - number of trials to repeat the training (default 3) 
 
-    episodes - number of episodes to run durin each trial run (default 250)
+    episodes - number of episodes to run during each trial run (default 250)
 
 **Note:** The 'Pong-v0' environment requires significant memory to store the replay buffer.
 
