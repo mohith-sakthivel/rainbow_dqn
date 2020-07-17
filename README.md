@@ -56,7 +56,7 @@ To test the rainbow algorithm on your machine, use
 ### Linux
 
 ```
-python rainbow/example.py --env='CartPole-v1 --runs=3 --episodes=250
+python rainbow/example.py --env='CartPole-v1' --runs=3 --episodes=250
 ```
 #### Arguments:
     env      - available environments are 'CartPole-v1' and 'Pong-v0'
