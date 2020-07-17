@@ -51,9 +51,17 @@ For those interested in studying the contributions of various rainbow components
 
 Modify the arguments passed to the rainbow class as necessary and pass the flags to disable the corresponding components. Some combinations might not have the helper functions pre-defined.
 
-To test the rainbow algorithm on your machine, use
-
 ### Linux
+
+To clone the repository
+
+```
+git clone https://github.com/roboticist-by-day/rainbow_dqn.git
+cd rainbow_dqn
+```
+
+
+To test the rainbow algorithm on your machine, use
 
 ```
 python rainbow/example.py --env='CartPole-v1' --runs=3 --episodes=250

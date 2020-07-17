@@ -11,3 +11,4 @@ rainbow/rainbow.ipynb
 rainbow/data
 rainbow/profiling_data
 rainbow/rainbow_low_mem.py
+rainbow/dummy.py
