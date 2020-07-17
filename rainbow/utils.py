@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 color_list = ['b', 'g', 'r', 'y', 'k', 'm']
 
 
-def preprocess(atari_screen, frames):
+def preprocess(atari_screen, frames, binary=False):
     """
     Process an 210x160 RGB image into an 80x80 GreyScale Image
     """
@@ -22,7 +22,10 @@ def preprocess(atari_screen, frames):
     out[out == 144] = 0     # erase background 1
     out[out == 109] = 0     # erase background 2
     out[out != 0] = 1       # everything else (paddles, ball) just set to 1
-    return out.reshape(1, 4, 80, 80).astype(np.bool)
+    if binary:
+        return out.reshape(1, 4, 80, 80).astype(np.bool)
+    else:
+        return out.reshape(1, 4, 80, 80)
 
 
 def plot_var_history(var_history, labels, show_confidence=False,
