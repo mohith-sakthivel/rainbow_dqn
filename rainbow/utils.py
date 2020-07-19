@@ -9,7 +9,24 @@ import matplotlib.pyplot as plt
 color_list = ['b', 'g', 'r', 'y', 'k', 'm']
 
 
-def preprocess(atari_screen, frames, binary=False):
+def choose_max(values):
+    values = values.squeeze()
+    max_val = values[0]
+    max_idxes = [0]
+    for i in range(1, values.size):
+        if values[i] >= max_val:
+            if values[i] == max_val:
+                max_idxes.append(i)
+            else:
+                max_val = values[i]
+                max_idxes = [i]
+    if len(max_idxes) == 1:
+        return np.array(max_idxes, dtype='int64').item()
+    else:
+        return np.random.choice(max_idxes, 1).item()
+
+
+def preprocess_binary(atari_screen, frames, binary=False):
     """
     Process an 210x160 RGB image into an 80x80 GreyScale Image
     """
@@ -22,10 +39,7 @@ def preprocess(atari_screen, frames, binary=False):
     out[out == 144] = 0     # erase background 1
     out[out == 109] = 0     # erase background 2
     out[out != 0] = 1       # everything else (paddles, ball) just set to 1
-    if binary:
-        return out.reshape(1, 4, 80, 80).astype(np.bool).tolist()
-    else:
-        return out.reshape(1, 4, 80, 80)
+    return out.reshape(1, 4, 80, 80).astype(np.bool).tolist()
 
 
 def plot_var_history(var_history, labels, show_confidence=False,
