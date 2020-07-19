@@ -45,7 +45,6 @@ class Rainbow():
     improvements incorporated in rainbow
 
     Arguments:
-    env                - gym environment
     num_actions        - number of actions available for the agent to take
     n_net              - a function that takes in num_actions (and num_atoms
                          for ditributional networks) as argument to
@@ -69,9 +68,11 @@ class Rainbow():
                          value network
     clip_grad          - value for clipping gradient norms
     learn_start        - time step after which to start learning
-    check_point        - episodes at which the active policy network model
+    check_pts          - episodes at which the policy network state dict
                          should be saved
     save_path          - path to save the neural network parameters
+    load_path          - load model state dict from the provided path
+                         (optimizer and other data not restored)
     no_duel            - flag to turn of duelling networks
     no_double          - flag to turn off double Q-networks
     no_priority        - flag to turn off prioritized buffers
@@ -86,8 +87,8 @@ class Rainbow():
                  lr={'start': 0.0005, 'end': 0.0001, 'period': 500},
                  eps={'start': 0.9, 'end': 0.05, 'period': 2500},
                  pri_buf_args={'alpha': 0.7, 'beta': (0.5, 1), 'period': 1e6},
-                 distrib_args={'atoms': 21},
-                 clip_grads=10, learn_start=None, check_pts=[], save_path=None,
+                 distrib_args={'atoms': 21}, clip_grads=10, learn_start=None,
+                 check_pts=[], save_path=None, load_path=None,
                  no_duel=False, no_double=False, no_priority_buf=False,
                  no_noise=False, no_distrib=False):
         self.num_actions = num_actions
@@ -99,6 +100,7 @@ class Rainbow():
         self.replay_mem = replay_mem
         self.clip_grads = clip_grads
         self.learn_start = learn_start
+        self.load_path = load_path
         # set epsilon
         if isinstance(eps, dict):
             self.eps = ExpScheduleAutoStep(**eps)
@@ -145,6 +147,8 @@ class Rainbow():
         # setup the neural network
         self.policy_net = network(self.num_actions)
         self.target_net = network(self.num_actions)
+        if self.load_path is not None:
+            self.policy_net.load_state_dict(torch.load(self.load_path))
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
         self.policy_net.to(self.device)
