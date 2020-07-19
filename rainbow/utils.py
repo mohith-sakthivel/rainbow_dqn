@@ -23,7 +23,7 @@ def preprocess(atari_screen, frames, binary=False):
     out[out == 109] = 0     # erase background 2
     out[out != 0] = 1       # everything else (paddles, ball) just set to 1
     if binary:
-        return out.reshape(1, 4, 80, 80).astype(np.bool)
+        return out.reshape(1, 4, 80, 80).astype(np.bool).tolist()
     else:
         return out.reshape(1, 4, 80, 80)
 
