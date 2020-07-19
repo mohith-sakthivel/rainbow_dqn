@@ -39,7 +39,7 @@ def preprocess_binary(atari_screen, frames, binary=False):
     out[out == 144] = 0     # erase background 1
     out[out == 109] = 0     # erase background 2
     out[out != 0] = 1       # everything else (paddles, ball) just set to 1
-    return out.reshape(1, 4, 80, 80).astype(np.bool).tolist()
+    return out.reshape(4, 80, 80).astype(np.bool).tolist()
 
 
 def plot_var_history(var_history, labels, show_confidence=False,
