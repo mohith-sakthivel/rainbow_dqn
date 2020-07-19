@@ -45,13 +45,13 @@ Achieving a directed exploration strategy is not very straightforward with Neura
 
 ## Usage
 
-For those interested in studying the contributions of various rainbow components, the algorithm supports functionlity to perform ablation studies.
+For those interested in studying the contributions of various rainbow components, the code supports functionlity to perform ablation studies. However, some combinations might not have the helper functions pre-defined. To disable improvements, modify the arguments passed to the rainbow class as necessary and pass the flags that disable the respective components. 
 
-Modify the arguments passed to the rainbow class as necessary and pass the flags to disable the corresponding components. Some combinations might not have the helper functions pre-defined.
+Training data is written to tensorbaord. Currently, training can be restored by providing the model state dict. The code can also be easily extended to restore the optimizer and other epoch dependent data.
 
 ### Linux
 
-To clone the repository
+To clone the repository,
 
 ```
 git clone https://github.com/roboticist-by-day/rainbow_dqn.git
@@ -59,7 +59,7 @@ cd rainbow_dqn
 ```
 
 
-To test the rainbow algorithm on your machine, use
+To test the rainbow algorithm on your machine,
 
 ```
 python rainbow/example.py --env='CartPole-v1' --runs=3 --episodes=250  --render
@@ -74,6 +74,16 @@ python rainbow/example.py --env='CartPole-v1' --runs=3 --episodes=250  --render
     render   - flag to render agent performance after training
 
 **Note:** The 'Pong-v0' environment requires significant memory to store the replay buffer.
+
+
+## Pre-Trained Models
+
+Pre-trained models are available for the following environments
+
+    - CartPole-v1
+    - Pong-v0
+    
+**Note:** For Pong-v0 environment, training has been performed only for 1000 episodes due computational resource limitations. Though this agent does not act optimally, it shows substantial improvement over the random acting agent. If the agent is trained further, the improved model shall be shared.
 
 ## Requirements
     - python 3.5 or greater
