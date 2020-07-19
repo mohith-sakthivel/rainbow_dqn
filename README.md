@@ -45,8 +45,6 @@ Achieving a directed exploration strategy is not very straightforward with Neura
 
 ## Usage
 
-The rainbow algorithm has methods only to facilitate training. Users have to write their own function for evaluation.
-
 For those interested in studying the contributions of various rainbow components, the algorithm supports functionlity to perform ablation studies.
 
 Modify the arguments passed to the rainbow class as necessary and pass the flags to disable the corresponding components. Some combinations might not have the helper functions pre-defined.
@@ -64,7 +62,7 @@ cd rainbow_dqn
 To test the rainbow algorithm on your machine, use
 
 ```
-python rainbow/example.py --env='CartPole-v1' --runs=3 --episodes=250
+python rainbow/example.py --env='CartPole-v1' --runs=3 --episodes=250  --render
 ```
 #### Arguments:
     env      - available environments are 'CartPole-v1' and 'Pong-v0'
@@ -72,6 +70,8 @@ python rainbow/example.py --env='CartPole-v1' --runs=3 --episodes=250
     runs     - number of trials to repeat the training (default 3) 
 
     episodes - number of episodes to run during each trial run (default 250)
+
+    render   - flag to render agent performance after training
 
 **Note:** The 'Pong-v0' environment requires significant memory to store the replay buffer.
 

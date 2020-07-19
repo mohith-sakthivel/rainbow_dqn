@@ -1,22 +1,105 @@
 import gym
 import time
+import torch
+import os
+import numpy as np
 
 import tqdm.autonotebook as auto
 import matplotlib.pyplot as plt
 
 from rainbow import Rainbow
 from models import NoisyDistNet, ConvDQN
-from utils import plot_var_history, get_model_name, preprocess
+from utils import choose_max, plot_var_history, get_model_name, preprocess_binary
 from torch.utils.tensorboard import SummaryWriter
 
 
-def run_experient(env, process_obs, act_freq,
-                  num_runs, num_episodes, agent_args,
-                  tb_path=None,
-                  render_env=False, plot_value_func=False,
-                  plot_state_visit=False):
+def make_gym_env(Environment):
+    def make_env():
+        return gym.make(Environment)
+    return make_env
+
+
+def best_check_point(make_env, act_freq, network, process_obs,
+                     check_pts, save_path, atoms=None, trials=10):
+    env = make_env()
+    if atoms is None:
+        model = network(env.action_space.n)
+    else:
+        model = network(env.action_space.n, atoms)
+    avg_returns = []
+    for check_pt in check_pts:
+        state_dict = torch.load(save_path + '/' + str(check_pt))
+        model.load_state_dict(state_dict)
+        avg_returns.append([])
+        for i in range(1, trials+1, 1):
+            env.seed(i)
+            obs = env.reset()
+            obs_stack = [obs]
+            done = False
+            time_step = 0
+            total_reward = 0
+            while not done:
+                if len(obs_stack) == act_freq or time_step == 0:
+                    act = choose_max(model.get_values(process_obs(obs_stack)))
+                    obs_stack = []
+                obs, reward, done, info = env.step(act)
+                obs_stack.append(obs)
+                total_reward += reward
+                time_step += 1
+            avg_returns[-1].append(total_reward)
+    env.close()
+    avg_returns = np.array(avg_returns).sum(axis=-1)
+    max_idx = np.argmax(avg_returns)
+    # get best performing model
+    state_dict = torch.load(save_path + '/' + str(check_pts[max_idx]))
+    model.load_state_dict(state_dict)
+    print('Best performing model: Episode %d' % (check_pts[max_idx]))
+    for check_pt in check_pts:
+        os.remove(save_path + '/' + str(check_pt))
+    torch.save(model.state_dict(), save_path + '/' + 'model_state_dict')
+    return model
+
+
+def view_agent(make_env, act_freq, network, process_obs,
+               save_path, atoms=None, trials=1):
+    env = make_env()
+    if atoms is None:
+        model = network(env.action_space.n)
+    else:
+        model = network(env.action_space.n, atoms)
+
+    state_dict = torch.load(save_path + '/' + 'model_state_dict')
+    model.load_state_dict(state_dict)
+    trial_returns = []
+    for i in range(1, trials+1, 1):
+        print('Trial: %d' % (i))
+        env.seed(i)
+        obs = env.reset()
+        obs_stack = [obs]
+        done = False
+        time_step = 0
+        total_reward = 0
+        while not done:
+            env.render()
+            time.sleep(0.01)
+            if len(obs_stack) == act_freq or time_step == 0:
+                act = choose_max(model.get_values(process_obs(obs_stack)))
+                obs_stack = []
+            obs, reward, done, info = env.step(act)
+            obs_stack.append(obs)
+            total_reward += reward
+            time_step += 1
+        print('Reward: %d' % total_reward)
+        trial_returns.append(total_reward)
+    env.close()
+
+
+def run_experiment(make_env, process_obs, act_freq,
+                   num_runs, num_episodes, agent_args,
+                   tb_path=None, watch_agent=True):
     reward_history = []
     agents_hist = []
+    env = make_env()
     assert isinstance(env.action_space, gym.spaces.Discrete), \
         "Action space is not discrete"
     act_dim = env.action_space.n
@@ -44,9 +127,6 @@ def run_experient(env, process_obs, act_freq,
                 interim_obs = []
                 # Start interaction with environment
                 while not done:
-                    if render_env:
-                        env.render()
-                        time.sleep(0.001)
                     # Take a step in the environment
                     observation, reward, done, info = env.step(action)
                     interim_reward += reward
@@ -70,46 +150,56 @@ def run_experient(env, process_obs, act_freq,
                         data = agent.get_train_data()
                         if data is not None:
                             writer.add_scalar('Loss', data.get('loss'), episode)
-            if run == 1:
-                agents_hist.append(agent)
+            # Find the best performing checkpoint
+            agents_hist.append(best_check_point(make_env, act_freq,
+                                                agent_kwargs['n_net'], process_obs,
+                                                agent_kwargs['check_pts'],
+                                                agent.save_path,
+                                                agent.z_atoms.cpu()))
+            # View the agent's performance
+            if watch_agent:
+                view_agent(make_env, act_freq, agent_kwargs['n_net'],
+                           process_obs, agent.save_path,
+                           agent.z_atoms.cpu())
             if tb_path:
                 writer.close()
     env.close()
     return reward_history, agents_hist
 
 
-def run_pong(runs=1, episodes=1000):
+def run_pong(runs=1, episodes=100000, render=True):
     # Setup pong environment
     Environment = 'Pong-v0'
-    test_env = gym.make(Environment)
+    test_env = make_gym_env(Environment)
 
     ag_args = [
                {'n_step': 3,
                 'n_net': lambda act, atoms: ConvDQN(4, act, atoms),
-                'policy_update_freq': 4, 'target_update_freq': 5000,
-                'mini_batch': 32, 'discount': 0.99, 'replay_mem': 100000,
-                'lr': {'start': 5e-4, 'end': 1e-4, 'period': 5000},
+                'policy_update_freq': 4, 'target_update_freq': 1250,
+                'mini_batch': 32, 'discount': 0.99, 'replay_mem': 50000,
+                'lr': {'start': 5e-4, 'end': 2.5e-4, 'period': 100000},
                 'eps': 0,
                 'pri_buf_args': {'alpha': 0.7, 'beta': (0.5, 1), 'period': 1e6},
                 'distrib_args': {'atoms': 21, 'min_val': -25, 'max_val': 25},
-                'clip_grads': 20, 'learn_start': 1e5,
-                'check_pts': [250, 500, 750], 'save_path': 'data/pong',
+                'clip_grads': 20, 'learn_start': 5e4,
+                'check_pts': [i*1000 for i in range(1, 100, 1)],
+                'save_path': 'data/Pong-v0',
                 'no_duel': False, 'no_double': False,
                 'no_priority_buf': False, 'no_noise': False,
                 'no_distrib': False},
                 ]
 
-    return run_experient(env=test_env, act_freq=4,
-                         process_obs=lambda x: preprocess(x, 4),
-                         num_runs=runs, num_episodes=episodes,
-                         agent_args=ag_args,
-                         tb_path='runs/pong', render_env=False)
+    return run_experiment(make_env=test_env, act_freq=4,
+                          process_obs=lambda x: preprocess_binary(x, 4, True),
+                          num_runs=runs, num_episodes=episodes,
+                          agent_args=ag_args,
+                          tb_path='runs/Pong-v0', watch_agent=render)
 
 
-def run_cartpole(runs=1, episodes=250):
+def run_cartpole(runs=1, episodes=250, render=True):
     # Setup cartpole environment
     Environment = 'CartPole-v1'
-    test_env = gym.make(Environment)
+    test_env = make_gym_env(Environment)
 
     ag_args = [
                {'n_step': 3,
@@ -121,33 +211,40 @@ def run_cartpole(runs=1, episodes=250):
                 'pri_buf_args': {'alpha': 0.7, 'beta': (0.5, 1), 'period': 1e6},
                 'distrib_args': {'atoms': 21, 'min_val': 0, 'max_val': 500},
                 'clip_grads': None,
-                'check_pts': [100, 200, 250], 'save_path': 'data/cartpole',
+                'check_pts': [150, 200, 250], 'save_path': 'data/CartPole-v1',
                 'no_duel': False, 'no_double': False, 'no_priority_buf': False,
                 'no_noise': False, 'no_distrib': False},
                ]
 
-    return run_experient(env=test_env, act_freq=1,
-                         process_obs=lambda x: x[-1],
-                         num_runs=runs, num_episodes=episodes,
-                         agent_args=ag_args,
-                         tb_path='runs/cartpole', render_env=False)
+    return run_experiment(make_env=test_env, act_freq=1,
+                          process_obs=lambda x: x[-1],
+                          num_runs=runs, num_episodes=episodes,
+                          agent_args=ag_args,
+                          tb_path='runs/CartPole-v1', watch_agent=render)
 
 
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--env', type=str, default='CartPole-v1')
-    parser.add_argument('--runs', type=int, default=1)
-    parser.add_argument('--episodes', type=int, default=250)
+    parser.add_argument('--env', type=str, default='CartPole-v1',
+                        help='Environment instantiation method')
+    parser.add_argument('--runs', type=int, default=None,
+                        help='Number runs to train')
+    parser.add_argument('--episodes', type=int, default=None,
+                        help='Number of episodes to train')
+    parser.add_argument('--render', action="store_true",
+                        help='Render agent performance after training')
     args = parser.parse_args()
     run_success = True
 
     if args.env in ['cartpole', 'CartPole', 'CartPole-v1']:
         print("Running CartPole-v1 environment")
-        reward_hist, agent_hist = run_cartpole(args.runs, args.episodes)
+        reward_hist, agent_hist = run_cartpole(args.runs,
+                                               args.episodes, args.render)
     elif args.env in ['pong', 'Pong', 'Pong-v0']:
         print('Running Pong-v0 environment')
-        reward_hist, agent_hist = run_pong(args.runs, args.episodes)
+        reward_hist, agent_hist = run_pong(args.runs,
+                                           args.episodes, args.render)
     else:
         print('invalid argument')
         run_success = False
@@ -156,8 +253,7 @@ if __name__ == '__main__':
     if run_success:
         plot_args = {'x_label': 'Episode',
                      'y_label': 'Reward during Episode (Average)',
-                     'log_scale': False,
-                     'y_ticks': [25, 50, 100, 200, 300, 400, 500]}
+                     'log_scale': False}
         labels = ["Rainbow DQN"]
 
         plot_var_history(reward_hist, labels, **plot_args)

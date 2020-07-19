@@ -107,7 +107,8 @@ class ConvDQN(nn.Module):
     def __init__(self, channels, actions, atoms, activation=nn.ReLU):
         super().__init__()
         self.actions = actions
-        self.atoms = atoms
+        self.register_buffer('atoms', atoms)
+        self.num_atoms = len(self.atoms)
         # create network shared by both value and adavantage layers
         self.shared_net = nn.Sequential(nn.Conv2d(channels, 32, 8, stride=4),
                                         nn.ReLU(),
@@ -118,11 +119,11 @@ class ConvDQN(nn.Module):
         # neural network layers to calculate state values
         self.value = nn.Sequential(NoisyLinear(2304, 512),
                                    activation(),
-                                   NoisyLinear(512, self.atoms))
+                                   NoisyLinear(512, self.num_atoms))
         # neural network layers to calculate action advantages
         self.advantage = nn.Sequential(NoisyLinear(2304, 512),
                                        activation(),
-                                       NoisyLinear(512, self.actions*self.atoms))
+                                       NoisyLinear(512, self.actions*self.num_atoms))
         self.noisy_layers = []
         for layer in chain(self.value, self.advantage):
             if isinstance(layer, NoisyLinear):
@@ -134,8 +135,8 @@ class ConvDQN(nn.Module):
             x.unsqueeze_(0)
             squeezed = True
         shared_net = self.shared_net(x).view(-1, 2304)
-        value = self.value(shared_net).view(-1, 1, self.atoms)
-        adv = self.advantage(shared_net).view(-1, self.actions, self.atoms)
+        value = self.value(shared_net).view(-1, 1, self.num_atoms)
+        adv = self.advantage(shared_net).view(-1, self.actions, self.num_atoms)
         action_val = value + (adv - adv.mean(-2, keepdim=True))
         if squeezed:
             return F.softmax(action_val, dim=-1).squeeze(0)
@@ -146,13 +147,20 @@ class ConvDQN(nn.Module):
         for layer in self.noisy_layers:
             layer.generate_noise()
 
+    def get_values(self, obs):
+        with torch.no_grad():
+            obs = torch.tensor(obs, dtype=torch.float32)
+            action_probs = self.forward(obs)
+            return torch.sum((action_probs * self.atoms), dim=-1).cpu().numpy()
+
 
 class NoisyDistNet(nn.Module):
     def __init__(self, obs_dim, hid_lyrs, actions, atoms, activation=nn.ReLU):
         super().__init__()
         assert len(hid_lyrs) >= 2, 'Aleast 2 hidden layers are required'
         self.actions = actions
-        self.atoms = atoms
+        self.register_buffer('atoms', atoms)
+        self.num_atoms = len(self.atoms)
         # create network shared by both value and adavantage layers
         layers = [obs_dim] + hid_lyrs
         nn_layers = []
@@ -163,11 +171,11 @@ class NoisyDistNet(nn.Module):
         # neural network layers to calculate state values
         self.value = nn.Sequential(NoisyLinear(hid_lyrs[-2], hid_lyrs[-1]),
                                    activation(),
-                                   NoisyLinear(hid_lyrs[-1], self.atoms))
+                                   NoisyLinear(hid_lyrs[-1], self.num_atoms))
         # neural network layers to calculate action advantages
         self.advantage = nn.Sequential(NoisyLinear(hid_lyrs[-2], hid_lyrs[-1]),
                                        activation(),
-                                       NoisyLinear(hid_lyrs[-1], self.actions*self.atoms))
+                                       NoisyLinear(hid_lyrs[-1], self.actions*self.num_atoms))
         self.noisy_layers = []
         for layer in chain(self.shared_net, self.value, self.advantage):
             if isinstance(layer, NoisyLinear):
@@ -177,10 +185,10 @@ class NoisyDistNet(nn.Module):
         shared_net = self.shared_net(x)
         if shared_net.ndim == 1:
             value = self.value(shared_net)
-            adv = self.advantage(shared_net).view(self.actions, self.atoms)
+            adv = self.advantage(shared_net).view(self.actions, self.num_atoms)
         else:
-            value = self.value(shared_net).view(-1, 1, self.atoms)
-            adv = self.advantage(shared_net).view(-1, self.actions, self.atoms)
+            value = self.value(shared_net).view(-1, 1, self.num_atoms)
+            adv = self.advantage(shared_net).view(-1, self.actions, self.num_atoms)
         action_val = value + (adv - adv.mean(-2, keepdim=True))
         return F.softmax(action_val, dim=-1)
 
@@ -188,6 +196,12 @@ class NoisyDistNet(nn.Module):
         """ Feed new noise values into the noisy layers of the network """
         for layer in self.noisy_layers:
             layer.generate_noise()
+
+    def get_values(self, obs):
+        with torch.no_grad():
+            obs = torch.tensor(obs, dtype=torch.float32)
+            action_probs = self.forward(obs)
+            return torch.sum((action_probs * self.atoms), dim=-1).cpu().numpy()
 
 
 class DuelNet(nn.Module):
@@ -216,6 +230,11 @@ class DuelNet(nn.Module):
         advantage = self.advantage(shared_net)
         action_values = value + (advantage - advantage.mean(-1, keepdim=True))
         return action_values
+
+    def get_values(self, obs):
+        with torch.no_grad():
+            obs = torch.tensor(obs, dtype=torch.float32)
+            return self.forward(obs).cpu().numpy()
 
 
 class NoisyDuelNet(nn.Module):
@@ -254,6 +273,11 @@ class NoisyDuelNet(nn.Module):
         for layer in self.noisy_layers:
             layer.generate_noise()
 
+    def get_values(self, obs):
+        with torch.no_grad():
+            obs = torch.tensor(obs, dtype=torch.float32)
+            return self.forward(obs).cpu().numpy()
+
 
 class NormalNet(nn.Module):
     def __init__(self, obs_dim, hid_lyrs, num_actions, activation=nn.ReLU):
@@ -268,3 +292,8 @@ class NormalNet(nn.Module):
 
     def forward(self, x):
         return self.shared_net(x)
+
+    def get_values(self, obs):
+        with torch.no_grad():
+            obs = torch.tensor(obs, dtype=torch.float32)
+            return self.forward(obs).cpu().numpy()

@@ -45,7 +45,7 @@ class Rainbow():
     improvements incorporated in rainbow
 
     Arguments:
-
+    env                - gym environment
     num_actions        - number of actions available for the agent to take
     n_net              - a function that takes in num_actions (and num_atoms
                          for ditributional networks) as argument to
@@ -87,7 +87,7 @@ class Rainbow():
                  eps={'start': 0.9, 'end': 0.05, 'period': 2500},
                  pri_buf_args={'alpha': 0.7, 'beta': (0.5, 1), 'period': 1e6},
                  distrib_args={'atoms': 21},
-                 clip_grads=10, learn_start=1e5, check_pts=[], save_path=None,
+                 clip_grads=10, learn_start=None, check_pts=[], save_path=None,
                  no_duel=False, no_double=False, no_priority_buf=False,
                  no_noise=False, no_distrib=False):
         self.num_actions = num_actions
@@ -131,7 +131,6 @@ class Rainbow():
             self.min_val = distrib_args['min_val']
             self.max_val = distrib_args['max_val']
             self.num_atoms = distrib_args.get('atoms')
-            def network(act): return n_net(act, self.num_atoms)
             self.delta_z =\
                 (self.max_val - self.min_val)/(self.num_atoms - 1)
             self.z_atoms = [self.min_val]
@@ -139,6 +138,8 @@ class Rainbow():
                 self.z_atoms.append(self.z_atoms[-1] + self.delta_z)
             self.z_atoms = torch.tensor(self.z_atoms, device=self.device,
                                         dtype=torch.float32)
+
+            def network(act): return n_net(act, self.z_atoms)
         else:
             network = n_net
         # setup the neural network
@@ -157,6 +158,8 @@ class Rainbow():
             self.replay = \
                 PrioritizedReplayBuffer(self.replay_mem, self.mini_batch,
                                         **pri_buf_args)
+        if self.learn_start is None:
+            self.learn_start = self.replay_mem
         # setup optimizer
         self.lr = lr
         if isinstance(self.lr, dict):
@@ -354,8 +357,10 @@ class Rainbow():
                 self.target_net.load_state_dict(self.policy_net.state_dict())
         # save model
         if self.save_model and self.episodes in self.check_pts:
-            torch.save(self.policy_net.state_dict(),
-                       self.save_path + '/' + str(self.episodes))
+            state_dict = self.policy_net.state_dict()
+            for key, val in state_dict.items():
+                state_dict[key] = val.cpu()
+            torch.save(state_dict, self.save_path + '/' + str(self.episodes))
         return self.episode_reward
 
     def _optimize(self):
