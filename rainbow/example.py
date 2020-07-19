@@ -167,7 +167,7 @@ def run_experiment(make_env, process_obs, act_freq,
     return reward_history, agents_hist
 
 
-def run_pong(runs=1, episodes=100000, render=True):
+def run_pong(runs=1, episodes=10000, render=True):
     # Setup pong environment
     Environment = 'Pong-v0'
     test_env = make_gym_env(Environment)
@@ -176,12 +176,12 @@ def run_pong(runs=1, episodes=100000, render=True):
                {'n_step': 3,
                 'n_net': lambda act, atoms: ConvDQN(4, act, atoms),
                 'policy_update_freq': 4, 'target_update_freq': 1250,
-                'mini_batch': 32, 'discount': 0.99, 'replay_mem': 50000,
-                'lr': {'start': 5e-4, 'end': 2.5e-4, 'period': 100000},
+                'mini_batch': 32, 'discount': 0.99, 'replay_mem': 10000,
+                'lr': {'start': 5e-4, 'end': 2.5e-4, 'period': 10000},
                 'eps': 0,
                 'pri_buf_args': {'alpha': 0.7, 'beta': (0.5, 1), 'period': 1e6},
                 'distrib_args': {'atoms': 21, 'min_val': -25, 'max_val': 25},
-                'clip_grads': 20, 'learn_start': 5e4,
+                'clip_grads': 20, 'learn_start': 1e4,
                 'check_pts': [i*1000 for i in range(1, 100, 1)],
                 'save_path': 'data/Pong-v0',
                 'no_duel': False, 'no_double': False,
@@ -228,7 +228,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--env', type=str, default='CartPole-v1',
                         help='Environment instantiation method')
-    parser.add_argument('--runs', type=int, default=None,
+    parser.add_argument('--runs', type=int, default=1,
                         help='Number runs to train')
     parser.add_argument('--episodes', type=int, default=None,
                         help='Number of episodes to train')
@@ -237,14 +237,19 @@ if __name__ == '__main__':
     args = parser.parse_args()
     run_success = True
 
+    # Collect experiment arguments passed
+    exp_args = {}
+    exp_args['render'] = args.render
+    exp_args['runs'] = args.runs
+    if args.episodes is not None:
+        exp_args['episodes'] = args.episodes
+
     if args.env in ['cartpole', 'CartPole', 'CartPole-v1']:
         print("Running CartPole-v1 environment")
-        reward_hist, agent_hist = run_cartpole(args.runs,
-                                               args.episodes, args.render)
+        reward_hist, agent_hist = run_cartpole(**exp_args)
     elif args.env in ['pong', 'Pong', 'Pong-v0']:
         print('Running Pong-v0 environment')
-        reward_hist, agent_hist = run_pong(args.runs,
-                                           args.episodes, args.render)
+        reward_hist, agent_hist = run_pong(**exp_args)
     else:
         print('invalid argument')
         run_success = False
