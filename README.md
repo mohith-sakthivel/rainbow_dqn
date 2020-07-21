@@ -82,8 +82,9 @@ Pre-trained models are available for the following environments
 
     - CartPole-v1
     - Pong-v0
-    
-**Note:** For Pong-v0 environment, training has been performed only for 1000 episodes due computational resource limitations. Though this agent does not act optimally, it shows substantial improvement over the random acting agent. If the agent is trained further, the improved model shall be shared.
+
+![](pong.gif)
+
 
 ## Requirements
     - python 3.5 or greater
