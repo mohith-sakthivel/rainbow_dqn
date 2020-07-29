@@ -88,7 +88,7 @@ class Rainbow():
                  eps={'start': 0.9, 'end': 0.05, 'period': 2500},
                  pri_buf_args={'alpha': 0.7, 'beta': (0.5, 1), 'period': 1e6},
                  distrib_args={'atoms': 21}, clip_grads=10, learn_start=None,
-                 check_pts=[], save_path=None, load_path=None,
+                 check_pts=[], save_path=None, load_path=None, use_gpu=True,
                  no_duel=False, no_double=False, no_priority_buf=False,
                  no_noise=False, no_distrib=False):
         self.num_actions = num_actions
@@ -113,7 +113,7 @@ class Rainbow():
         self.no_noise = no_noise
         self.no_distrib = no_distrib
         # use gpu if available
-        if torch.cuda.is_available():
+        if torch.cuda.is_available() and use_gpu:
             self.device = torch.device('cuda')
         else:
             self.device = torch.device('cpu')
