@@ -399,7 +399,8 @@ class Rainbow():
                                dtype=torch.float32)
         next_obs = torch.tensor(next_obs, device=self.device,
                                 dtype=torch.float32)[t_masks]
-        t_masks_rev = [not val for val in t_masks]
+        t_mask_tensor = torch.tensor(t_masks, device=self.device,
+                                     dtype=torch.float32)
         # feed noise into the networks
         if self.no_noise is False:
             self.policy_net.feed_noise()
@@ -418,33 +419,23 @@ class Rainbow():
             max_actions = \
                 (next_obs_probs * self.z_atoms).sum(dim=-1).max(dim=-1)[1]
             # calculate target value atoms
-            target = rewards.unsqueeze(-1)[t_masks] + self.n_disc*self.z_atoms
+            target = rewards.unsqueeze(-1) + \
+                torch.ger(t_mask_tensor, self.n_disc*self.z_atoms)
             target.clamp_(self.min_val, self.max_val)
             # project non-terminal state targets on to the support vectors
-            b = (target - self.min_val)/self.delta_z
-            low = torch.floor(b).type(torch.int64)
-            up = torch.ceil(b).type(torch.int64)
-            # project terminal state targets on to the support vectors
-            b_term = (rewards[t_masks_rev] - self.min_val)/self.delta_z
-            low_term = torch.floor(b_term).type(torch.int64)
-            up_term = torch.ceil(b_term).type(torch.int64)
+            z_expan = self.z_atoms.view(1, -1, 1)
+            target_expan = target.unsqueeze(1)
+            abs_diff = torch.abs(target_expan - z_expan)/self.delta_z
+            proj_coeff = torch.clamp(1 - abs_diff, 0, 1)
             # calulate next state-action value probability
             nxt_obs_no = [i for i in range(next_obs.shape[0])]
-            next_probs = self.target_net(next_obs)[nxt_obs_no, max_actions, :]
+            next_probs = torch.ones((self.mini_batch, self.num_atoms),
+                                    device=self.device, dtype=torch.float32)/self.num_atoms
+            next_probs[t_masks] = self.target_net(next_obs)[nxt_obs_no, max_actions, :]
+            next_probs.unsqueeze_(1)
             # Distribute the probability of non-terminal targets
-            target_probs = torch.zeros((self.mini_batch, self.num_atoms),
-                                       device=self.device, dtype=torch.float32)
-            for idx in range(self.num_atoms):
-                target_probs[t_masks, low[:, idx]] += \
-                    next_probs[nxt_obs_no, idx] * (up[:, idx] - b[:, idx])
-                target_probs[t_masks, up[:, idx]] += \
-                    next_probs[nxt_obs_no, idx] * (b[:, idx] - low[:, idx])
-                target_probs[t_masks, low[:, idx]] += \
-                    next_probs[nxt_obs_no, idx] * (up[:, idx] == low[:, idx]).int()
-            # Distribute the probability of terminal targets
-            target_probs[t_masks_rev, low_term] += (up_term - b_term)
-            target_probs[t_masks_rev, up_term] += (b_term - low_term)
-            target_probs[t_masks_rev, low_term] += (up_term == low_term).int()
+            target_probs = (next_probs * proj_coeff).sum(-1)
+
         # calculate value distribution of the state-action pair
         sample_no = [i for i in range(self.mini_batch)]
         obs_act_prob = self.policy_net(obs)[sample_no, actions, :]
