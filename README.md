@@ -58,6 +58,12 @@ git clone https://github.com/roboticist-by-day/rainbow_dqn.git
 cd rainbow_dqn
 ```
 
+To create the python environment using Anaconda package manager,
+
+```
+conda create --name <env_name> --file requirements.txt
+conda activate <env_name>
+```
 
 To test the rainbow algorithm on your machine,
 
