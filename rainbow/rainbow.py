@@ -73,6 +73,7 @@ class Rainbow():
     save_path          - path to save the neural network parameters
     load_path          - load model state dict from the provided path
                          (optimizer and other data not restored)
+    use_gpu            - flag to use GPU if available
     no_duel            - flag to turn of duelling networks
     no_double          - flag to turn off double Q-networks
     no_priority        - flag to turn off prioritized buffers
@@ -88,7 +89,7 @@ class Rainbow():
                  eps={'start': 0.9, 'end': 0.05, 'period': 2500},
                  pri_buf_args={'alpha': 0.7, 'beta': (0.5, 1), 'period': 1e6},
                  distrib_args={'atoms': 21}, clip_grads=10, learn_start=None,
-                 check_pts=[], save_path=None, load_path=None, use_gpu=True,
+                 check_pts=[], save_path=None, load_path=None, use_gpu=False,
                  no_duel=False, no_double=False, no_priority_buf=False,
                  no_noise=False, no_distrib=False):
         self.num_actions = num_actions
@@ -115,6 +116,7 @@ class Rainbow():
         # use gpu if available
         if torch.cuda.is_available() and use_gpu:
             self.device = torch.device('cuda')
+            print('Using GPU...')
         else:
             self.device = torch.device('cpu')
         # set seed for random elementsself.num_actions
