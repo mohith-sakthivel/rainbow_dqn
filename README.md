@@ -2,6 +2,14 @@
 
 This repository contains an implementation of the rainbow DQN algorithm put forward by the DeepMind team in the paper '[Rainbow: Combining Improvements in Deep Reinforcement Learning](https://arxiv.org/abs/1710.02298)'. [1]
 
+
+<p align="center" >
+  <img width="160" height="210" src="media/pong.gif">
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  <img width="315" height="210" src="media/cartpole.gif">
+</p>
+
+
 ## Description
 
 Deep Q-Learning Network (DQN) [2] is one of the most popular deep reinforcement learning algorithms. It is an off-policy learning algorithm that is highly sample efficient. Over the years, many improvements were proposed to improve the performance of DQN. Of the many extensions available for the DQN algorithm, some popular enhancements were combined by the DeepMind team and presented as the Rainbow DQN algorithm. These imporvements were found to be mostly orthogonal, with each component contributing to various degrees.
@@ -88,8 +96,6 @@ Pre-trained models are available for the following environments
 
     - CartPole-v1
     - Pong-v0
-
-![](pong.gif)
 
 
 ## Requirements
