@@ -10,47 +10,6 @@ This repository contains an implementation of the rainbow DQN algorithm put forw
 </p>
 
 
-## Description
-
-Deep Q-Learning Network (DQN) [2] is one of the most popular deep reinforcement learning algorithms. It is an off-policy learning algorithm that is highly sample efficient. Over the years, many improvements were proposed to improve the performance of DQN. Of the many extensions available for the DQN algorithm, some popular enhancements were combined by the DeepMind team and presented as the Rainbow DQN algorithm. These imporvements were found to be mostly orthogonal, with each component contributing to various degrees.
-
-The six add-ons to the base DQN algorithm in the Rainbow version are
-
-    1. Double Q-Learning
-
-    2. Prioritized Experience Replay
-
-    3. Dueling Networks
-
-    4. Multi-step (n-step) Learning
-
-    5. Distributional Value Learning
-
-    6. Noisy Networks
-
-### 1. Double Q-learning
-DQN introduced the concept of using of two different networks - a policy network for action selection and a target network for bootsrapping values during learning. This helped to improve stability and thereby avoid oscillations. DQN suffered from an over-estimation bias as the target network always bootstraps with the maximum next state-action value. Hence some noise in the target estimation is sufficient to make the algorithm over-optimiistic.
-
-Van Hassalt et. al [3] introduced a method to alleviate this effect by decoupling the argmax selection and state-action value calculation through the use of two different networks. The policy network is used for maximum action value selection and the target network is used for bootstrapping the selected state-action pair values.
-
-### 2. Prioritized Experience Replay
-Prioritized experience replay is a crucial part of DQN. It provides stability by breaking correlations in the agent's experience. The transitions expereienced by the agent is stored in a buffer. A mini-batch is sampled from this buffer uniformly and is used at each learning step. Thus older experience, which is likely to be different from the observations encountered during current policy, is also available for learning. This breaks the correlations and provides a rich and diverse experience to learn from.
-
-A suggested by Silver et al. in [1] some experiences have more prospect for potential learning. Better performance can be obtained by prioritizing transitions with greater learning potential. The td-error of the transition is a readily available proxy for the learning potential metric. Schaul et al. [4] proposed a proportial method and a rank based method to achieve this prioritizing. Though the rainbow paper uses the proportional variant, this implementation uses the rank based variant as it is less sensitive to outliers. An effective implementation of the prioritized queue is necessary to avoid excessive computational overhead. The priority queue is implemented here using a Binary Search Tree (BST).
-
-### 3. Dueling Networks
-Wang et al. [5] showed that that the performance of DQN can be improved by decoupling the value estimation and advantage estimation. This dueling architecture has a shared layer of networks followed by two separate streams - one for estimating state value and another for the action advantag. These two streams are again combined to compute the state-action values. This allows for better generalization across actions
-
-
-### 4. MultiStep Learning
-Bootstrapping over multiple time steps has always been an effective technique in temporal difference learning [6]. Mnih et al. [7] in their famous A3C paper proposed the idea of using multistep learning in Deep Reinforcement Learning algorithms like DQN. The n-step variants generally lead to faster learning. Most common choices of n are in the range 3-5.
-
-### 5. Distributional Value Learning
-Reinforcement learning literature has predominantly focussed on learning an estimate of the expectation of the return. However, Bellemare et al. [8] showed that learning a distribution rather than a fixed return provides better stability particularly when using funtion approximation. Hence here, the action-value function is approximated as a factorized probability distribution.
-
-### 6. Noisy Networks
-Achieving a directed exploration strategy is not very straightforward with Neural Networks. The most common exploration policy - epsilon greedy, is quite inefficient as the exploration is random. Fortunato et al. [9] introduced NosiyNets which have a parameteric noise variable embedded into their layers. This induced stochasticity proves to be an effective exploration strategy over the traditional methods. This implementation uses Noisy Linear layers with factorized gaussion noise.
-
 ## Usage
 
 For those interested in studying the contributions of various rainbow components, the code supports functionlity to perform ablation studies. However, some combinations might not have the helper functions pre-defined. To disable improvements, modify the arguments passed to the rainbow class as necessary and pass the flags that disable the respective components. 
@@ -105,6 +64,48 @@ Pre-trained models are available for the following environments
     - tqdm (optional)
     - tensorboard (optional)
     - matplotlib (optional)
+
+
+## Description
+
+Deep Q-Learning Network (DQN) [2] is one of the most popular deep reinforcement learning algorithms. It is an off-policy learning algorithm that is highly sample efficient. Over the years, many improvements were proposed to improve the performance of DQN. Of the many extensions available for the DQN algorithm, some popular enhancements were combined by the DeepMind team and presented as the Rainbow DQN algorithm. These imporvements were found to be mostly orthogonal, with each component contributing to various degrees.
+
+The six add-ons to the base DQN algorithm in the Rainbow version are
+
+    1. Double Q-Learning
+
+    2. Prioritized Experience Replay
+
+    3. Dueling Networks
+
+    4. Multi-step (n-step) Learning
+
+    5. Distributional Value Learning
+
+    6. Noisy Networks
+
+### 1. Double Q-learning
+DQN introduced the concept of using of two different networks - a policy network for action selection and a target network for bootsrapping values during learning. This helped to improve stability and thereby avoid oscillations. DQN suffered from an over-estimation bias as the target network always bootstraps with the maximum next state-action value. Hence some noise in the target estimation is sufficient to make the algorithm over-optimiistic.
+
+Van Hassalt et. al [3] introduced a method to alleviate this effect by decoupling the argmax selection and state-action value calculation through the use of two different networks. The policy network is used for maximum action value selection and the target network is used for bootstrapping the selected state-action pair values.
+
+### 2. Prioritized Experience Replay
+Prioritized experience replay is a crucial part of DQN. It provides stability by breaking correlations in the agent's experience. The transitions expereienced by the agent is stored in a buffer. A mini-batch is sampled from this buffer uniformly and is used at each learning step. Thus older experience, which is likely to be different from the observations encountered during current policy, is also available for learning. This breaks the correlations and provides a rich and diverse experience to learn from.
+
+A suggested by Silver et al. in [1] some experiences have more prospect for potential learning. Better performance can be obtained by prioritizing transitions with greater learning potential. The td-error of the transition is a readily available proxy for the learning potential metric. Schaul et al. [4] proposed a proportial method and a rank based method to achieve this prioritizing. Though the rainbow paper uses the proportional variant, this implementation uses the rank based variant as it is less sensitive to outliers. An effective implementation of the prioritized queue is necessary to avoid excessive computational overhead. The priority queue is implemented here using a Binary Search Tree (BST).
+
+### 3. Dueling Networks
+Wang et al. [5] showed that that the performance of DQN can be improved by decoupling the value estimation and advantage estimation. This dueling architecture has a shared layer of networks followed by two separate streams - one for estimating state value and another for the action advantag. These two streams are again combined to compute the state-action values. This allows for better generalization across actions
+
+
+### 4. MultiStep Learning
+Bootstrapping over multiple time steps has always been an effective technique in temporal difference learning [6]. Mnih et al. [7] in their famous A3C paper proposed the idea of using multistep learning in Deep Reinforcement Learning algorithms like DQN. The n-step variants generally lead to faster learning. Most common choices of n are in the range 3-5.
+
+### 5. Distributional Value Learning
+Reinforcement learning literature has predominantly focussed on learning an estimate of the expectation of the return. However, Bellemare et al. [8] showed that learning a distribution rather than a fixed return provides better stability particularly when using funtion approximation. Hence here, the action-value function is approximated as a factorized probability distribution.
+
+### 6. Noisy Networks
+Achieving a directed exploration strategy is not very straightforward with Neural Networks. The most common exploration policy - epsilon greedy, is quite inefficient as the exploration is random. Fortunato et al. [9] introduced NosiyNets which have a parameteric noise variable embedded into their layers. This induced stochasticity proves to be an effective exploration strategy over the traditional methods. This implementation uses Noisy Linear layers with factorized gaussion noise.
 
 ## Citation
 1. Matteo Hessel, Joseph Modayil, Hado van Hasselt, Tom Schaul, Georg Ostrovski, Will Dabney, Dan Horgan, Bilal Piot, Mohammad Azar, David Silver. Rainbow: Combining Improvements in Deep Reinforcement Learning. arXiv preprint arXiv:1710.02298, 2017.
