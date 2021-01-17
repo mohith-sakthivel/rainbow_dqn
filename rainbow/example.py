@@ -109,6 +109,7 @@ def run_experiment(make_env, process_obs, act_freq,
         for run in range(1, num_runs+1):
             reward_history[i].append([])
             env.seed(run)
+            np.random.seed(run)
             agent_kwargs["seed"] = run
             agent = Rainbow(act_dim, **agent_kwargs)
             if tb_path:
@@ -122,6 +123,7 @@ def run_experiment(make_env, process_obs, act_freq,
                     observation = process_obs([observation])
                 done = False
                 time_step = 0
+                noise = 0
                 action = agent.start(observation)
                 interim_reward = 0
                 interim_obs = []
@@ -132,11 +134,13 @@ def run_experiment(make_env, process_obs, act_freq,
                     interim_reward += reward
                     interim_obs.append(observation)
                     time_step += 1
-                    if not done and time_step % act_freq == 0:
+                    if not done and time_step % (act_freq+noise) == 0:
                         # Get next action from agent
+                        interim_obs = interim_obs[-act_freq:]
                         if process_obs is not None:
                             interim_obs = process_obs(interim_obs)
                         action = agent.take_step(interim_reward, interim_obs)
+                        noise = np.random.randint(0, 3)
                         interim_reward = 0
                         interim_obs = []
                     elif done:
