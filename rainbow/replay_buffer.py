@@ -8,7 +8,7 @@ import heapq
 import random
 
 from collections import deque
-from schedules import LinearScheduler
+from rainbow.schedules import LinearScheduler
 from copy import deepcopy
 
 

@@ -7,9 +7,9 @@ import numpy as np
 import tqdm.autonotebook as auto
 import matplotlib.pyplot as plt
 
-from rainbow import Rainbow
-from models import NoisyDistNet, ConvDQN
-from utils import choose_max, plot_var_history, get_model_name, preprocess_binary
+from rainbow.rainbow import Rainbow
+from rainbow.models import NoisyDistNet, ConvDQN
+from rainbow.utils import choose_max, plot_var_history, get_model_name, preprocess_binary
 from torch.utils.tensorboard import SummaryWriter
 
 
@@ -180,7 +180,7 @@ def run_pong(runs=1, episodes=10000, render=True):
                {'n_step': 3,
                 'n_net': lambda act, atoms: ConvDQN(4, act, atoms),
                 'policy_update_freq': 4, 'target_update_freq': 1250,
-                'mini_batch': 32, 'discount': 0.99, 'replay_mem': 10000,
+                'mini_batch': 32, 'discount': 0.99, 'replay_mem': 250000,
                 'lr': {'start': 5e-4, 'end': 2.5e-4, 'period': 10000},
                 'eps': 0,
                 'pri_buf_args': {'alpha': 0.7, 'beta': (0.5, 1), 'period': 1e6},
