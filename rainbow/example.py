@@ -2,14 +2,15 @@ import gym
 import time
 import torch
 import os
+import shutil
 import numpy as np
 
 import tqdm.autonotebook as auto
 import matplotlib.pyplot as plt
 
-from rainbow import Rainbow
-from models import NoisyDistNet, ConvDQN
-from utils import choose_max, plot_var_history, get_model_name, preprocess_binary
+from rainbow.rainbow import Rainbow
+from rainbow.models import NoisyDistNet, ConvDQN
+from rainbow.utils import choose_max, plot_var_history, get_model_name, preprocess_binary
 from torch.utils.tensorboard import SummaryWriter
 
 
@@ -28,7 +29,7 @@ def best_check_point(make_env, act_freq, network, process_obs,
         model = network(env.action_space.n, atoms)
     avg_returns = []
     for check_pt in check_pts:
-        state_dict = torch.load(save_path + '/' + str(check_pt))
+        state_dict = torch.load(save_path + f'/ep_{check_pt}/model_state.pt')
         model.load_state_dict(state_dict)
         avg_returns.append([])
         for i in range(1, trials+1, 1):
@@ -51,11 +52,11 @@ def best_check_point(make_env, act_freq, network, process_obs,
     avg_returns = np.array(avg_returns).sum(axis=-1)
     max_idx = np.argmax(avg_returns)
     # get best performing model
-    state_dict = torch.load(save_path + '/' + str(check_pts[max_idx]))
+    state_dict = torch.load(save_path + f'/ep_{check_pts[max_idx]}/model_state.pt')
     model.load_state_dict(state_dict)
     print('Best performing model: Episode %d' % (check_pts[max_idx]))
     for check_pt in check_pts:
-        os.remove(save_path + '/' + str(check_pt))
+        shutil.rmtree(save_path + f'/ep_{check_pt}')
     torch.save(model.state_dict(), save_path + '/' + 'model_state_dict')
     return model
 
@@ -180,7 +181,7 @@ def run_pong(runs=1, episodes=10000, render=True):
                {'n_step': 3,
                 'n_net': lambda act, atoms: ConvDQN(4, act, atoms),
                 'policy_update_freq': 4, 'target_update_freq': 1250,
-                'mini_batch': 32, 'discount': 0.99, 'replay_mem': 10000,
+                'mini_batch': 32, 'discount': 0.99, 'replay_mem': 250000,
                 'lr': {'start': 5e-4, 'end': 2.5e-4, 'period': 10000},
                 'eps': 0,
                 'pri_buf_args': {'alpha': 0.7, 'beta': (0.5, 1), 'period': 1e6},

@@ -1,15 +1,16 @@
+import os
+import pickle
+
 import numpy as np
+from datetime import datetime
 
 # pytorch modules
 import torch
 import torch.optim as optim
 import torch.optim.lr_scheduler as Scheduler
 
-from replay_buffer import ReplayBuffer, PrioritizedReplayBuffer, Transition
-from schedules import ExponentialScheduler
-
-from datetime import datetime
-import os
+from rainbow.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer, Transition
+from rainbow.schedules import ExponentialScheduler
 
 
 class ValueVar():
@@ -71,7 +72,8 @@ class Rainbow():
     check_pts          - episodes at which the policy network state dict
                          should be saved
     save_path          - path to save the neural network parameters
-    load_path          - load model state dict from the provided path
+    load_path          - load model state dict from the provided path. Also, loads
+                         replay buffer if available
                          (optimizer and other data not restored)
     use_gpu            - flag to use GPU if available
     no_duel            - flag to turn of duelling networks
@@ -89,7 +91,7 @@ class Rainbow():
                  eps={'start': 0.9, 'end': 0.05, 'period': 2500},
                  pri_buf_args={'alpha': 0.7, 'beta': (0.5, 1), 'period': 1e6},
                  distrib_args={'atoms': 21}, clip_grads=10, learn_start=None,
-                 check_pts=[], save_path=None, load_path=None, use_gpu=False,
+                 check_pts=[], save_path=None, load_path=None, use_gpu=True,
                  no_duel=False, no_double=False, no_priority_buf=False,
                  no_noise=False, no_distrib=False):
         self.num_actions = num_actions
@@ -150,13 +152,18 @@ class Rainbow():
         self.policy_net = network(self.num_actions)
         self.target_net = network(self.num_actions)
         if self.load_path is not None:
-            self.policy_net.load_state_dict(torch.load(self.load_path))
+            self.policy_net.load_state_dict(
+                torch.load(self.load_path+'/model_state.pt'))
+            print(f'Successfully loaded model from {self.load_path} ...')
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
         self.policy_net.to(self.device)
         self.target_net.to(self.device)
         # setup experience replay  buffer
-        if self.no_priority_buf:
+        if self.load_path is not None and os.path.isfile(self.load_path+'/replay.pkl'):
+            self.replay = pickle.load(self.load_path+'/replay.pkl')
+            print('Successfully loaded replay buffer...')
+        elif self.no_priority_buf:
             self.replay = ReplayBuffer(self.replay_mem, self.mini_batch)
         else:
             if pri_buf_args.get('period', None) is not None:
@@ -366,7 +373,11 @@ class Rainbow():
             state_dict = self.policy_net.state_dict()
             for key, val in state_dict.items():
                 state_dict[key] = val.cpu()
-            torch.save(state_dict, self.save_path + '/' + str(self.episodes))
+            os.makedirs(self.save_path + f'/ep_{self.episodes}', exist_ok=True)
+            torch.save(state_dict,
+                       self.save_path + f'/ep_{self.episodes}/model_state.pt')
+            # with open(self.save_path+'/replay.pkl', 'wb') as f:
+            #     pickle.dump(self.replay, f)
         return self.episode_reward
 
     def _optimize(self):
