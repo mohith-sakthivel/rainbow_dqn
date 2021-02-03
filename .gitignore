@@ -7,7 +7,6 @@ data/*
 rainbow/image_learn/*
 rainbow/test.py
 rainbow/test.ipynb
-rainbow/rainbow.ipynb
 rainbow/data
 rainbow/profiling_data
 rainbow/rainbow_low_mem.py
