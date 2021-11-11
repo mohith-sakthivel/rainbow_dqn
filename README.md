@@ -95,7 +95,7 @@ Prioritized experience replay is a crucial part of DQN. It provides stability by
 A suggested by Silver et al. in [1] some experiences have more prospect for potential learning. Better performance can be obtained by prioritizing transitions with greater learning potential. The td-error of the transition is a readily available proxy for the learning potential metric. Schaul et al. [4] proposed a proportial method and a rank based method to achieve this prioritizing. Though the rainbow paper uses the proportional variant, this implementation uses the rank based variant as it is less sensitive to outliers. An effective implementation of the prioritized queue is necessary to avoid excessive computational overhead. The priority queue is implemented here using a Binary Search Tree (BST).
 
 ### 3. Dueling Networks
-Wang et al. [5] showed that that the performance of DQN can be improved by decoupling the value estimation and advantage estimation. This dueling architecture has a shared layer of networks followed by two separate streams - one for estimating state value and another for the action advantag. These two streams are again combined to compute the state-action values. This allows for better generalization across actions
+Wang et al. [5] showed that that the performance of DQN can be improved by decoupling the value estimation and advantage estimation. This dueling architecture has a shared layer of networks followed by two separate streams - one for estimating state value and another for the action advantage. These two streams are again combined to compute the state-action values. This allows for better generalization across actions
 
 
 ### 4. MultiStep Learning
